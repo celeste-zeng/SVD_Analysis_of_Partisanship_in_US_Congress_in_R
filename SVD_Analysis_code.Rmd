@@ -1,0 +1,660 @@
+---
+title: "Project2"
+author: "Celeste Zeng, Simona Liao"
+date: "2020/2/10"
+output: html_document
+---
+
+<!--- Begin styling code. --->
+<style type="text/css">
+/* Whole document: */
+body{
+  font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
+  font-size: 12pt;
+}
+h1.title {
+  font-size: 38px;
+  text-align: center;
+}
+h4.author {
+  font-size: 18px;
+  text-align: center;
+}
+h4.date {
+  font-size: 18px;
+  text-align: center;
+}
+</style>
+<!--- End styling code. --->
+
+# Analysis of the 90th and 116th U.S. Congress Partisanship
+
+### Project Goal:
+
+This project aims to examine the partisanship of the U.S. Congress using SVD (singular value decomposition) analysis. We analyzed the roll call data from 4 perspectives of the Senate or the House of Representatives: their political parties, the comparison between 90th and 116th congress, their age and the region they are from and . We also compared the graphs through these 4 perspectives to find out the potential relationships between their voting preferences and their identities. 
+
+
+```{r, include = FALSE, echo = FALSE}
+# read the data into csv file and save them 
+library(tidyverse)
+hr_90th <- read_csv(file = "https://raw.githubusercontent.com/bryandmartin/STAT302/master/docs/Projects/project2/house_90_raw.csv")
+se_90th <- read_csv(file = "https://raw.githubusercontent.com/bryandmartin/STAT302/master/docs/Projects/project2/senate_90_raw.csv")
+hr_116th <- read_csv(file = "https://raw.githubusercontent.com/bryandmartin/STAT302/master/docs/Projects/project2/house_116_raw.csv")
+se_116th <- read_csv(file = "https://raw.githubusercontent.com/bryandmartin/STAT302/master/docs/Projects/project2/senate_116_raw.csv")
+
+#write_csv(hr_90th, path = "./data/hr_90th.csv")
+#write_csv(hr_116th, path = "./data/hr_116th.csv")
+#write_csv(se_90th, path = "./data/se_90th.csv")
+#write_csv(se_116th, path = "./data/se_116th.csv")
+```
+
+```{r, echo = FALSE, include = FALSE}
+# replace all 'NA' values with 0
+library(ggrepel)
+hr_90th[is.na(hr_90th)] <- 0
+hr_116th[is.na(hr_116th)] <- 0
+se_90th[is.na(se_90th)] <- 0
+se_116th[is.na(se_116th)] <- 0
+
+# get SVD decomposition for each matrix
+hr_90_svd <- svd(hr_90th[, -1 : -4])
+se_90_svd <- svd(se_90th[, -1 : -4])
+hr_116_svd <- svd(hr_116th[, -1 : -4])
+se_116_svd <- svd(se_116th[, -1 : -4])
+
+# get the percentage of the sum of energies of the first 2 columns divided by the sum of total energies, which is 0.8033931
+energy <- se_116_svd$d^2
+energy_1_and_2 <- (energy[1] + energy[2]) / sum(energy)
+```
+
+
+### Data Processing:
+
+
+Before plotting the graphs, we first cleaned the data by replacing all the ‘NA’ values with 0 which corresponds to abstention from voting. Only by doing this can we operate SVD decomposition on the data set.
+
+
+Also, we use SVD to do dimension reduction. By using the voting data of the 116th Senate, we create an energy plot for it: the x-axis shows the column index while the y-axis is the corresponding energy (the sum of the squared singular values).  From the energy plot, we can see that columns with index 1 & 2 have much higher energies than the rest. To further testify to this observation, we use the sum of energies of the first 2 columns divided by the sum of total energies and get a result of over 80%.  The first 2 columns in matrix U or V contain over 80% of information of the original data. Hence, it is reasonable to use the first 2 columns in matrix U (which is the “senate/representative to concept” matrix) to plot all the graphs. We are not interested in which roll calls are most important compared with others, so we did not use V matrices.
+
+
+```{r, echo = F}
+# generate an energy plot for the 116th Senate
+
+energy_plot <- plot(se_116_svd$d^2, ylim = c(0, 25000), main = "Energy Plot", ylab = "Energy")
+```
+
+## Analysis:
+
+### Part 1: The Difference of Partisanship between the House of Representatives and the Senate
+
+
+The first graph illustrates the SVD of Voting Data of the 116th Senate. The SVD identifies groups of Senates who vote in a similar fashion on many roll calls. From this graph, we see that Democrats (red) shown on the right and Republicans (blue) shown on the left side on the plots. Hence, we call the x-axis “partisan coordinate”. Senators whose voting records have high absolute values on the  x-axis tend to vote with their own party. We can see that the Senators in the 116th Congress are very split and defend their own parties. 
+
+In contrast, we define the y-axis as the "bipartisan coordinate" because Senators who have high absolute values on it tend to vote with the majority of the Senate regardless of their party affiliation. From bipartisan coordinate, we can see that Senators from the Democratic party are more likely to vote with the majority of the Senate because the absolute values they have on the y-axis are much higher than those of Republican Senators.
+
+```{r, echo = F}
+# get SVD graph for the 116th Senate voting data grouped by different parties
+df_se_116 <- data.frame("x" = se_116_svd$u[, 1],
+                    "y" = se_116_svd$u[, 2],                   
+                    "label" = se_116th$party_code)
+                    
+ggplot(df_se_116, aes(x = x, y = y, color = label, group = label)) + 
+  labs(title = "SVD of Voting Data of the 116th Senate", 
+                             x ="Partisan Coordinate", y = "Bipartisan Coordinate")  +
+  geom_point() + 
+  theme_bw(base_size = 14) +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        axis.text.x = element_text(face = "bold"))  
+```
+
+
+The second graph illustrates the SVD of Voting Data of the 116th House of Representatives. It identifies groups of House of Representatives who vote in a similar fashion on many roll calls. The same as the situation in the 116th congress Senate, we can see that the House of Representatives in the 116th Congress are also split and tend to vote for their own parties, although the dots’ absolute values on x-axis are not quite large. 
+
+
+Different from the 116th Senate, we see an opposite distribution of red and blue dots in this graph: Democrats (red) concentrate on the left and Republicans (blue) concentrate on the right in the plots. 
+Furthermore, according to distribution around y-axis, we see that Republican House of Representatives are more likely to vote with the majority of the House regardless of party affiliation because they are further away from 0 on the y-axis.
+
+```{r, echo = F}
+# get SVD graph for the 116th House of Representatives voting data grouped by different parties
+df_hr_116 <- data.frame("x" = hr_116_svd$u[, 1],
+                    "y" = hr_116_svd$u[, 2],                   
+                    "label" = hr_116th$party_code)
+ggplot(df_hr_116, aes(x = x, y = y, color = label, group = label)) + 
+  labs(title = "SVD of Voting Data of the 116th 
+  House of Representatives", 
+                             x ="Partisan Coordinate", y = "Bipartisan Coordinate")  +
+  geom_point() + 
+  theme_bw(base_size = 14) + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        axis.text.x = element_text(face = "bold")) 
+```
+
+
+
+### Part 2: Comparison between the 90th and 116th Congress
+
+
+The first graph illustrates the SVD of Voting Data of the 90th Senate. It identifies groups of Senators who vote in a similar fashion on many roll calls.In this graph, we can not see clear areas occupied by either blue dots(Republican) or red dots(Democrats). Instead, they mix together. Therefore, we can say that the two parties are much less split compared with the 116th congress. The dots still have high absolute value on the Partisan Coordinate(x-axis), so Senators are still very likely to vote for their own parties. 
+
+Meanwhile, red dots and blue dots are almost uniformly distributed along the y-axis. So we can conclude that none of the parties are likely to vote with the majority of the Senate. 
+
+```{r, echo = F}
+# get SVD graph for the 90th Senate voting data grouped by different parties
+df_se_90 <- data.frame("x" = se_90_svd$u[, 1],
+                    "y" = se_90_svd$u[, 2],                   
+                    "label" = se_90th$party_code)
+ggplot(df_se_90, aes(x = x, y = y, color = label, group = label)) + 
+  labs(title = "SVD of Voting Data of the 90th Senate", 
+                             x ="Partisan Coordinate", y = "Bipartisan Coordinate")  +
+  geom_point() + 
+  theme_bw(base_size = 14) + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        axis.text.x = element_text(face = "bold")) 
+```
+
+
+The second graph illustrates the SVD of Voting Data of the 90th House of Representatives. It identifies groups of Representatives who vote in a similar fashion on many roll calls.The same as the graph of 90th congress Senate, we can not see clear areas occupied by either blue dots(Republican) or red dots(Democrats). Two parties are much less split compared with the 116th congress House of Representatives. The dots’ absolute values on the Partisan Coordinate(x-axis) are slightly smaller than those of the 90th Senate, so the 90th House of Representatives are a bit more neutral. 
+
+The Republican representatives’ data concentrate on the lower half of the y-axis while the Democratic representatives’ data concentrate on the lower half of the y-axis. The Republican Representatives also score higher on the bipartisan axis in the negative direction so they are more likely to vote with the majority of the house regardless of party affiliation.
+
+
+```{r, echo = F}
+# get SVD graph for the 90th House of Representatives voting data grouped by different parties
+df_hr_90 <- data.frame("x" = hr_90_svd$u[, 1],
+                    "y" = hr_90_svd$u[, 2],                   
+                    "label" = hr_90th$party_code) 
+ggplot(df_hr_90, aes(x = x, y = y, color = label, group = label)) + 
+  labs(title = "SVD of Voting Data of the 90th  
+  House of Representatives", 
+                             x ="Partisan Coordinate", y = "Bipartisan Coordinate")  +
+  geom_point() + 
+  theme_bw(base_size = 14) + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        axis.text.x = element_text(face = "bold")) 
+```
+
+### Part 3: The Relationship between Partisanship and the Voter's Age
+
+
+For the graphs about the senators or representatives’ ages, we floored their born years to the decades in order to group the data by a broad range of their ages. For example, we replaced 1972 with 1970 and 1968 with 1960.
+
+
+```{r, echo = FALSE, include = FALSE}
+# floor the year born by decades
+hr_90th_01 <- hr_90th %>%
+  mutate(born = born - born %% 10)
+hr_116th_01 <- hr_116th %>%
+  mutate(born = born - born %% 10)
+se_90th_01 <- se_90th %>%
+  mutate(born = born - born %% 10)
+se_116th_01 <- se_116th %>%
+  mutate(born = born - born %% 10)
+```
+
+
+Firstly, comparing the graph of 116th Senate voting data by parties and the following graph by age, we can find out that senates of different ages are uniformly distributed in two groups. Notably, senators who have a low absolute value on the Bipartisan Coordinate, meaning that not to vote with the majority of the Senate, mostly have a younger age(born year from 1950 - 1970.)
+
+
+```{r, echo = FALSE}
+# generate SVD graph for the 116th Senate voting data colored by age
+se_116th_svd <- svd(se_116th[, -1:-4])
+se_116th_df <- data.frame("x" = se_116th_svd$u[, 1],
+                        "y" = se_116th_svd$u[, 2],
+                        "born" = se_116th_01$born)
+ggplot(se_116th_df, aes(x = x, y = y, color = born)) +
+  geom_point() +
+  theme_bw(base_size = 14) +
+  labs(title = "116th Senate Voting Data by Age",
+       x = "Partisan Coordinate",
+       y = "Bipartisan Coordinate") + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+
+
+Secondly, comparing the graph of the 116th House voting data by parties and the following graph by age, we can find out that senates of different ages are uniformly distributed in two groups, which is similar to that of Congress Senate. However, there is a different pattern from the Senate. The Republican representatives of younger age tend to have a lower absolute value on Partisan Coordinates, meaning that they are less tended to vote with the party as the elder representatives do.
+
+
+```{r, echo = FALSE}
+# generate SVD graph for the 116th House of Representatives voting data colored by age
+hr_116th_svd <- svd(hr_116th_01[, -1:-4])
+hr_116th_df <- data.frame("x" = hr_116th_svd$u[, 1],
+                        "y" = hr_116th_svd$u[, 2],
+                        "born" = hr_116th_01$born)
+ggplot(hr_116th_df, aes(x = x, y = y, color = born)) +
+  geom_point() +
+  theme_bw(base_size = 14) +
+  labs(title = "116th House of Representatives Voting Data by Age",
+       x = "Partisan Coordinate",
+       y = "Bipartisan Coordinate") + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+
+
+Thirdly, from the graph below, we can tell that senators of different ages are almost equally spread in two political parties. But the Democrat senators are slightly younger than the Republican senators.
+
+
+```{r, echo = FALSE}
+# generate SVD graph for the 90th Senate voting data colored by age
+se_90th_svd <- svd(se_90th_01[, -1:-4])
+se_90th_df <- data.frame("x" = se_90th_svd$u[, 1],
+                        "y" = se_90th_svd$u[, 2],
+                        "born" = se_90th_01$born)
+ggplot(se_90th_df, aes(x = x, y = y, color = born)) +
+  geom_point() +
+  theme_bw(base_size = 14) +
+   labs(title = "90th Senate Voting Data by Age",
+       x = "Partisan Coordinate",
+       y = "Bipartisan Coordinate") + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+
+
+Finally, in the graph of the 90th House voting data by age below, we can see that representatives of different ages are equally distributed in two political parties. Representatives with a low absolute value on the Bipartisan Coordinate (near 0) who tend not to vote with the majority of the House, are younger than the average age. This finding is similar to that of 116th Senate voting data.
+
+
+```{r, echo = FALSE}
+# generate SVD graph for the 90th House of Representatives voting data colored by age
+hr_90th_svd <- svd(hr_90th_01[, -1:-4])
+hr_90th_df <- data.frame("x" = hr_90th_svd$u[, 1],
+                        "y" = hr_90th_svd$u[, 2],
+                        "born" = hr_90th_01$born)
+ggplot(hr_90th_df, aes(x = x, y = y, color = born)) +
+  geom_point() +
+  theme_bw(base_size = 14) + 
+  labs(title = "90th House of Representatives Voting Data by Age",
+       x = "Partisan Coordinate",
+       y = "Bipartisan Coordinate") + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+
+
+
+### Part 4: The Relationship between Partisanship and the Voter's Region
+
+
+For the graphs about the regions that the senators or representatives from, we group the data by the five regions of the U.S. (the Northeast, the Midwest, the South, the West, and the Southwest,) instead of states.
+
+
+
+```{r, echo = FALSE, include = FALSE}
+# create vectors of five regions in the U.S.
+Northeast <- c("CT", "ME", "MA", "NH", "NJ", "NY", "PA", "RI", "VT", "DE", "MD")
+Southeast <- c("AL", "AR", "FL", "GA", "KY", "LA", "MD", "MS", "NC", "SC", "TN", "VA", "WV")
+West <- c("CO", "ID", "MT", "NV", "UT", "WY", "AK", "CA", "HI", "OR", "WA")
+Midwest <- c("ND", "SD", "NE", "KS", "MO", "IA", "MN", "WI", "MI", "IL", "IN", "OH")
+Southwest <- c("TX", "OK", "NM", "AZ")
+```
+```{r, echo = FALSE, include = FALSE}
+# change the data of states into the region that states belong to 
+library(dplyr)
+se_116th_02 <- se_116th %>%
+  mutate(state_abbrev = case_when(state_abbrev %in% Northeast ~ "NE",
+                                  state_abbrev %in% Southeast ~ "SE",
+                                  state_abbrev %in% West ~ "WE",
+                                  state_abbrev %in% Midwest ~ "MW",
+                                  state_abbrev %in% Southwest ~ "SW"))
+```
+```{r, echo = FALSE, include = FALSE}
+# change the data of states into the region that states belong to 
+se_90th_02 <- se_90th %>%
+  mutate(state_abbrev = case_when(state_abbrev %in% Northeast ~ "NE",
+                                  state_abbrev %in% Southeast ~ "SE",
+                                  state_abbrev %in% West ~ "WE",
+                                  state_abbrev %in% Midwest ~ "MW",
+                                  state_abbrev %in% Southwest ~ "SW"))
+```
+```{r, echo = FALSE, include = FALSE}
+# change the data of states into the region that states belong to 
+hr_90th_02 <- hr_90th %>%
+  mutate(state_abbrev = case_when(state_abbrev %in% Northeast ~ "NE",
+                                  state_abbrev %in% Southeast ~ "SE",
+                                  state_abbrev %in% West ~ "WE",
+                                  state_abbrev %in% Midwest ~ "MW",
+                                  state_abbrev %in% Southwest ~ "SW"))
+```
+```{r, echo = FALSE, include = FALSE}
+# change the data of states into the region that states belong to 
+hr_116th_02 <- hr_116th %>%
+  mutate(state_abbrev = case_when(state_abbrev %in% Northeast ~ "NE",
+                                  state_abbrev %in% Southeast ~ "SE",
+                                  state_abbrev %in% West ~ "WE",
+                                  state_abbrev %in% Midwest ~ "MW",
+                                  state_abbrev %in% Southwest ~ "SW"))
+```
+
+
+First, comparing the graph of 116th Senate voting data by parties and this graph by region, we can find out that senates from the Southeast mostly are Republicans while senates from the Northeast mostly are Democrats. For the senates from the Midwest and the Southwest, there are more of them in the Republican Party than the Democrat Party. Senates from the West equally distribute in two Parties.
+
+
+```{r, echo = FALSE}
+# generate SVD graph for the 116th Senate voting data colored by region
+se_116th_svd_02 <- svd(se_116th_02[, -1:-4])
+  
+se_116th_02_df <- data.frame("x" = se_116th_svd_02$u[, 1],
+                        "y" = se_116th_svd_02$u[, 2],
+                       "Region" = as.factor(se_116th_02$state_abbrev))
+ggplot(se_116th_02_df, aes(x = x, y = y, color = Region)) +
+  geom_point() +
+  theme_bw(base_size = 14) +
+  labs(title = "116th Senate Voting Data by Region",
+       x = "Partisan Coordinate",
+       y = "Bipartisan Coordinate") + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+
+
+Second, comparing this graph with the graph of the 116th Senate, we can find out that the representatives’ division in two parties is not as extreme as that of the senates. Representatives from the Midwest, Northeast, Southwest, and West are almost equally distributed in the two parties. Remarkably, there are more representatives from the Southeast in the Republican Party than in the Democrats, which is the opposite of the situation in the Senate.
+
+
+```{r, echo = FALSE}
+# generate SVD graph for the 116th House of Representatives voting data colored by region
+hr_116th_svd_02 <- svd(hr_116th_02[, -1:-4])
+  
+hr_116th_02_df <- data.frame("x" = hr_116th_svd_02$u[, 1],
+                        "y" = hr_116th_svd_02$u[, 2],
+                       "Region" = as.factor(hr_116th_02$state_abbrev))
+ggplot(hr_116th_02_df, aes(x = x, y = y, color = Region)) +
+  geom_point() +
+  theme_bw(base_size = 14) +
+  labs(title = "116th House of Representatives Voting Data by Region",
+       x = "Partisan Coordinate",
+       y = "Bipartisan Coordinate") + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+
+
+Third, in the graph below, we can find out that most senators from the Southwest are in the Republican Party and most senators from the Northeast are in the Democrat Party. Senators from the West, Midwest, and Southwest regions spread in the two parties about the same. 
+
+
+```{r, echo = FALSE}
+# generate SVD graph for the 90th Senate voting data colored by region
+se_90th_svd_02 <- svd(se_90th_02[, -1:-4])
+  
+se_90th_02_df <- data.frame("x" = se_90th_svd_02$u[, 1],
+                        "y" = se_90th_svd_02$u[, 2],
+                       "Region" = as.factor(se_90th_02$state_abbrev))
+ggplot(se_90th_02_df, aes(x = x, y = y, color = Region)) +
+  geom_point() +
+  theme_bw(base_size = 14) +
+  labs(title = "90th Senate Voting Data by Region",
+       x = "Partisan Coordinate",
+       y = "Bipartisan Coordinate") + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+
+
+Last, comparing the graph below and the graph of the 90th Senate voting data, the broad distribution of representatives from different regions is similar but less extreme. For example, although the majority of the representatives from the Northeast are Democrats, there are some of them in the Republican Party.
+
+
+
+```{r, echo = FALSE}
+# generate SVD graph for the 90th House of Representatives voting data colored by region
+hr_90th_svd_02 <- svd(hr_90th_02[, -1:-4])
+  
+hr_90th_02_df <- data.frame("x" = hr_90th_svd_02$u[, 1],
+                        "y" = hr_90th_svd_02$u[, 2],
+                       "Region" = as.factor(hr_90th_02$state_abbrev))
+ggplot(hr_90th_02_df, aes(x = x, y = y, color = Region)) +
+  geom_point() +
+  theme_bw(base_size = 14) +
+  labs(title = "90th House of Representatives Voting Data by Region",
+       x = "Partisan Coordinate",
+       y = "Bipartisan Coordinate") + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+
+
+## Conclusion:
+### Part 1 & Part 2:
+According to the 4 graphs in part1 & part2, we can conclude that : 1. The 116th congress is much more split than the 90th congress, so the two parties usually have opposite opinions on bills in the 116th congress; 2. The Senate and the House of Representatives of the same term have similar voting patterns: if the Senate is very split, so will the House of Representatives; there wasn’t a situation where the Senate is split but the House is neutral; 3. For both the 116th and 90th congress, the Senate are more likely to vote with the majority regardless of party affiliation than the House of Representatives. 
+
+### Part 3 & Part 4:
+From the graphs about partisanship and the voter’s age above, we can find that voters of different ages mostly distribute equally in two political parties. The relationship between partisanship and the voter’s region is a little bit more complicated. Voters from specific regions (such as the Northeast) had a preference for one party over another. This preference can be different in the House and the Senate.
+
+
+## Code Appendix
+```{r, eval = F}
+# read the data into csv file
+library(tidyverse)
+hr_90th <- read_csv(file = "https://raw.githubusercontent.com/bryandmartin/STAT302/master/docs/Projects/project2/house_90_raw.csv")
+se_90th <- read_csv(file = "https://raw.githubusercontent.com/bryandmartin/STAT302/master/docs/Projects/project2/senate_90_raw.csv")
+hr_116th <- read_csv(file = "https://raw.githubusercontent.com/bryandmartin/STAT302/master/docs/Projects/project2/house_116_raw.csv")
+se_116th <- read_csv(file = "https://raw.githubusercontent.com/bryandmartin/STAT302/master/docs/Projects/project2/senate_116_raw.csv")
+#write_csv(hr_90th, path = "./data/hr_90th.csv")
+#write_csv(hr_116th, path = "./data/hr_116th.csv")
+#write_csv(se_90th, path = "./data/se_90th.csv")
+#write_csv(se_116th, path = "./data/se_116th.csv")
+
+# replace all 'NA' values with 0
+library(ggrepel)
+hr_90th[is.na(hr_90th)] <- 0
+hr_116th[is.na(hr_116th)] <- 0
+se_90th[is.na(se_90th)] <- 0
+se_116th[is.na(se_116th)] <- 0
+
+# get SVD decomposition for each matrix
+hr_90_svd <- svd(hr_90th[, -1 : -4])
+se_90_svd <- svd(se_90th[, -1 : -4])
+hr_116_svd <- svd(hr_116th[, -1 : -4])
+se_116_svd <- svd(se_116th[, -1 : -4])
+
+# get the percentage of the sum of energies of the first 2 columns divided by the sum of total energies, which is 0.8033931
+energy <- se_116_svd$d^2
+energy_1_and_2 <- (energy[1] + energy[2]) / sum(energy)
+
+# generate an energy plot for the 116th Senate
+
+energy_plot <- plot(se_116_svd$d^2, ylim = c(0, 25000), main = "Energy Plot", ylab = "Energy")
+
+# get SVD graph for the 116th Senate voting data grouped by different parties
+df_se_116 <- data.frame("x" = se_116_svd$u[, 1],
+                    "y" = se_116_svd$u[, 2],                   
+                    "label" = se_116th$party_code)
+                    
+ggplot(df_se_116, aes(x = x, y = y, color = label, group = label)) + 
+  labs(title = "SVD of Voting Data of the 116th Congress Senate", 
+                             x ="Partisan Coordinate", y = "Bipartisan Coordinate")  +
+  geom_point() + 
+  theme_bw(base_size = 14) +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        axis.text.x = element_text(face = "bold"))  
+
+# get SVD graph for the 116th House of Representatives voting data grouped by different parties
+df_hr_116 <- data.frame("x" = hr_116_svd$u[, 1],
+                    "y" = hr_116_svd$u[, 2],                   
+                    "label" = hr_116th$party_code)
+ggplot(df_hr_116, aes(x = x, y = y, color = label, group = label)) + 
+  labs(title = "SVD of Voting Data of the 116th Congress 
+       House of Representatives", 
+                             x ="Partisan Coordinate", y = "Bipartisan Coordinate")  +
+  geom_point() + 
+  theme_bw(base_size = 14) + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        axis.text.x = element_text(face = "bold")) 
+
+# get SVD graph for the 90th Senate voting data grouped by different parties
+df_se_90 <- data.frame("x" = se_90_svd$u[, 1],
+                    "y" = se_90_svd$u[, 2],                   
+                    "label" = se_90th$party_code)
+ggplot(df_se_90, aes(x = x, y = y, color = label, group = label)) + 
+  labs(title = "SVD of Voting Data of the 90th Congress Senate", 
+                             x ="Partisan Coordinate", y = "Bipartisan Coordinate")  +
+  geom_point() + 
+  theme_bw(base_size = 14) + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        axis.text.x = element_text(face = "bold")) 
+
+# get SVD graph for the 90th House of Representatives voting data grouped by different parties
+df_hr_90 <- data.frame("x" = hr_90_svd$u[, 1],
+                    "y" = hr_90_svd$u[, 2],                   
+                    "label" = hr_90th$party_code) 
+ggplot(df_hr_90, aes(x = x, y = y, color = label, group = label)) + 
+  labs(title = "SVD of Voting Data of the 90th Congress 
+       House of Representatives", 
+                             x ="Partisan Coordinate", y = "Bipartisan Coordinate")  +
+  geom_point() + 
+  theme_bw(base_size = 14) + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"),
+        axis.text.x = element_text(face = "bold")) 
+
+# floor the year born by decades
+hr_90th_01 <- hr_90th %>%
+  mutate(born = born - born %% 10)
+hr_116th_01 <- hr_116th %>%
+  mutate(born = born - born %% 10)
+se_90th_01 <- se_90th %>%
+  mutate(born = born - born %% 10)
+se_116th_01 <- se_116th %>%
+  mutate(born = born - born %% 10)
+
+# generate SVD graph for the 116th Senate voting data colored by age
+se_116th_svd <- svd(se_116th[, -1:-4])
+se_116th_df <- data.frame("x" = se_116th_svd$u[, 1],
+                        "y" = se_116th_svd$u[, 2],
+                        "born" = se_116th_01$born)
+ggplot(se_116th_df, aes(x = x, y = y, color = born)) +
+  geom_point() +
+  theme_bw(base_size = 14) +
+  labs(title = "116th Senate Voting Data by Age",
+       x = "Partisan Coordinate",
+       y = "Bipartisan Coordinate") + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+# generate SVD graph for the 116th House of Representatives voting data colored by age
+hr_116th_svd <- svd(hr_116th_01[, -1:-4])
+hr_116th_df <- data.frame("x" = hr_116th_svd$u[, 1],
+                        "y" = hr_116th_svd$u[, 2],
+                        "born" = hr_116th_01$born)
+ggplot(hr_116th_df, aes(x = x, y = y, color = born)) +
+  geom_point() +
+  theme_bw(base_size = 14) +
+  labs(title = "116th House of Representatives Voting Data by Age",
+       x = "Partisan Coordinate",
+       y = "Bipartisan Coordinate") + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+# generate SVD graph for the 90th Senate voting data colored by age
+se_90th_svd <- svd(se_90th_01[, -1:-4])
+se_90th_df <- data.frame("x" = se_90th_svd$u[, 1],
+                        "y" = se_90th_svd$u[, 2],
+                        "born" = se_90th_01$born)
+ggplot(se_90th_df, aes(x = x, y = y, color = born)) +
+  geom_point() +
+  theme_bw(base_size = 14) +
+   labs(title = "90th Senate Voting Data by Age",
+       x = "Partisan Coordinate",
+       y = "Bipartisan Coordinate") + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+# generate SVD graph for the 90th House of Representatives voting data colored by age
+hr_90th_svd <- svd(hr_90th_01[, -1:-4])
+hr_90th_df <- data.frame("x" = hr_90th_svd$u[, 1],
+                        "y" = hr_90th_svd$u[, 2],
+                        "born" = hr_90th_01$born)
+ggplot(hr_90th_df, aes(x = x, y = y, color = born)) +
+  geom_point() +
+  theme_bw(base_size = 14) + 
+  labs(title = "90th House of Representatives Voting Data by Age",
+       x = "Partisan Coordinate",
+       y = "Bipartisan Coordinate") + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+# create vectors of five regions in the U.S.
+Northeast <- c("CT", "ME", "MA", "NH", "NJ", "NY", "PA", "RI", "VT", "DE", "MD")
+Southeast <- c("AL", "AR", "FL", "GA", "KY", "LA", "MD", "MS", "NC", "SC", "TN", "VA", "WV")
+West <- c("CO", "ID", "MT", "NV", "UT", "WY", "AK", "CA", "HI", "OR", "WA")
+Midwest <- c("ND", "SD", "NE", "KS", "MO", "IA", "MN", "WI", "MI", "IL", "IN", "OH")
+Southwest <- c("TX", "OK", "NM", "AZ")
+
+# change the data of states into the region that states belong to 
+library(dplyr)
+se_116th_02 <- se_116th %>%
+  mutate(state_abbrev = case_when(state_abbrev %in% Northeast ~ "NE",
+                                  state_abbrev %in% Southeast ~ "SE",
+                                  state_abbrev %in% West ~ "WE",
+                                  state_abbrev %in% Midwest ~ "MW",
+                                  state_abbrev %in% Southwest ~ "SW"))
+
+# change the data of states into the region that states belong to 
+se_90th_02 <- se_90th %>%
+  mutate(state_abbrev = case_when(state_abbrev %in% Northeast ~ "NE",
+                                  state_abbrev %in% Southeast ~ "SE",
+                                  state_abbrev %in% West ~ "WE",
+                                  state_abbrev %in% Midwest ~ "MW",
+                                  state_abbrev %in% Southwest ~ "SW"))
+
+# change the data of states into the region that states belong to 
+hr_90th_02 <- hr_90th %>%
+  mutate(state_abbrev = case_when(state_abbrev %in% Northeast ~ "NE",
+                                  state_abbrev %in% Southeast ~ "SE",
+                                  state_abbrev %in% West ~ "WE",
+                                  state_abbrev %in% Midwest ~ "MW",
+                                  state_abbrev %in% Southwest ~ "SW"))
+
+# change the data of states into the region that states belong to 
+hr_116th_02 <- hr_116th %>%
+  mutate(state_abbrev = case_when(state_abbrev %in% Northeast ~ "NE",
+                                  state_abbrev %in% Southeast ~ "SE",
+                                  state_abbrev %in% West ~ "WE",
+                                  state_abbrev %in% Midwest ~ "MW",
+                                  state_abbrev %in% Southwest ~ "SW"))
+
+# generate SVD graph for the 116th Senate voting data colored by region
+se_116th_svd_02 <- svd(se_116th_02[, -1:-4])
+  
+se_116th_02_df <- data.frame("x" = se_116th_svd_02$u[, 1],
+                        "y" = se_116th_svd_02$u[, 2],
+                       "Region" = as.factor(se_116th_02$state_abbrev))
+ggplot(se_116th_02_df, aes(x = x, y = y, color = Region)) +
+  geom_point() +
+  theme_bw(base_size = 14) +
+  labs(title = "116th Senate Voting Data by Region",
+       x = "Partisan Coordinate",
+       y = "Bipartisan Coordinate") + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+# generate SVD graph for the 116th House of Representatives voting data colored by region
+hr_116th_svd_02 <- svd(hr_116th_02[, -1:-4])
+  
+hr_116th_02_df <- data.frame("x" = hr_116th_svd_02$u[, 1],
+                        "y" = hr_116th_svd_02$u[, 2],
+                       "Region" = as.factor(hr_116th_02$state_abbrev))
+ggplot(hr_116th_02_df, aes(x = x, y = y, color = Region)) +
+  geom_point() +
+  theme_bw(base_size = 14) +
+  labs(title = "116th House of Representatives Voting Data by Region",
+       x = "Partisan Coordinate",
+       y = "Bipartisan Coordinate") + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+# generate SVD graph for the 90th Senate voting data colored by region
+se_90th_svd_02 <- svd(se_90th_02[, -1:-4])
+  
+se_90th_02_df <- data.frame("x" = se_90th_svd_02$u[, 1],
+                        "y" = se_90th_svd_02$u[, 2],
+                       "Region" = as.factor(se_90th_02$state_abbrev))
+ggplot(se_90th_02_df, aes(x = x, y = y, color = Region)) +
+  geom_point() +
+  theme_bw(base_size = 14) +
+  labs(title = "90th Senate Voting Data by Region",
+       x = "Partisan Coordinate",
+       y = "Bipartisan Coordinate") + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+# generate SVD graph for the 90th House of Representatives voting data colored by region
+hr_90th_svd_02 <- svd(hr_90th_02[, -1:-4])
+  
+hr_90th_02_df <- data.frame("x" = hr_90th_svd_02$u[, 1],
+                        "y" = hr_90th_svd_02$u[, 2],
+                       "Region" = as.factor(hr_90th_02$state_abbrev))
+ggplot(hr_90th_02_df, aes(x = x, y = y, color = Region)) +
+  geom_point() +
+  theme_bw(base_size = 14) +
+  labs(title = "90th House of Representatives Voting Data by Region",
+       x = "Partisan Coordinate",
+       y = "Bipartisan Coordinate") + 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+
+
+
